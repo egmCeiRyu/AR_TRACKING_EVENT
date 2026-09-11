@@ -1,0 +1,41 @@
+{
+  "version": 1,
+  "characters": [
+    {
+      "id": "gentleman",
+      "name": "ひげダンディ",
+      "description": "くるりんひげの人気者",
+      "template": "gentleman"
+    },
+    {
+      "id": "robot",
+      "name": "ピコロボ",
+      "description": "未来からきた相棒",
+      "template": "robot"
+    },
+    {
+      "id": "cat",
+      "name": "ミケねこ",
+      "description": "気まぐれな冒険家",
+      "template": "cat"
+    },
+    {
+      "id": "bunny",
+      "name": "ももウサギ",
+      "description": "ふわふわ、はずむ笑顔",
+      "template": "bunny"
+    },
+    {
+      "id": "alien",
+      "name": "そらマメ",
+      "description": "宇宙からこんにちは",
+      "template": "alien"
+    },
+    {
+      "id": "bear",
+      "name": "くまポン",
+      "description": "のんびりやさしい友だち",
+      "template": "bear"
+    }
+  ]
+}

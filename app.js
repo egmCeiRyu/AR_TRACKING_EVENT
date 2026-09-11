@@ -4,11 +4,34 @@ const MODEL = 'https://storage.googleapis.com/mediapipe-models/pose_landmarker/p
 const FACE_MODEL = 'https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task';
 const video = document.querySelector('#camera');
 const canvas = document.querySelector('#overlay');
-const ctx = canvas.getContext('2d');
+let ctx = canvas.getContext('2d');
 const start = document.querySelector('#start');
 const debug = document.querySelector('#debug');
 const status = document.querySelector('#status');
 const fps = document.querySelector('#fps');
+const menu = document.querySelector('#menu');
+const ar = document.querySelector('#ar');
+const back = document.querySelector('#back');
+const PRESETS = {
+  gentleman: { skin: '#ffe39a', body: '#8c7dff', arm: '#9effca', accent: '#ff927e', iris: '#46d9c5', bg: '#eee7fd' },
+  robot: { skin: '#bce7f4', body: '#507ddb', arm: '#82c8e3', accent: '#ffd475', iris: '#377fe0', bg: '#e2edf9' },
+  cat: { skin: '#ffc17e', body: '#ed866c', arm: '#ffb865', accent: '#ffe7a3', iris: '#709e50', bg: '#fbe8d7' },
+  bunny: { skin: '#ffd7e5', body: '#be83be', arm: '#f2b6d4', accent: '#e4d8ff', iris: '#ba67ba', bg: '#f5e3f0' },
+  alien: { skin: '#b9e69a', body: '#649777', arm: '#bce8af', accent: '#ddd586', iris: '#7655cf', bg: '#e5efdc' },
+  bear: { skin: '#c99972', body: '#629ba8', arm: '#d6ac87', accent: '#ffe39a', iris: '#825637', bg: '#eae5df' }
+};
+const DEFAULT_CATALOG = [
+  { id: 'gentleman', name: 'ひげダンディ', description: 'くるりんひげの人気者', template: 'gentleman' },
+  { id: 'robot', name: 'ピコロボ', description: '未来からきた相棒', template: 'robot' },
+  { id: 'cat', name: 'ミケねこ', description: '気まぐれな冒険家', template: 'cat' },
+  { id: 'bunny', name: 'ももウサギ', description: 'ふわふわ、はずむ笑顔', template: 'bunny' },
+  { id: 'alien', name: 'そらマメ', description: '宇宙からこんにちは', template: 'alien' },
+  { id: 'bear', name: 'くまポン', description: 'のんびりやさしい友だち', template: 'bear' }
+];
+let catalog = DEFAULT_CATALOG.map(item => ({ ...item }));
+let selected = catalog[0];
+let theme = { ...PRESETS[selected.template] };
+let startGeneration = 0, modelLoading = null;
 const REQUIRED = [0, 11, 12, 13, 14, 15, 16];
 const LINKS = [[11, 12], [11, 13], [13, 15], [12, 14], [14, 16], [11, 23], [12, 24], [23, 24]];
 const smooth = Array.from({ length: 33 }, () => ({ x: 0, y: 0 }));
@@ -50,7 +73,11 @@ function resize() {
 }
 new ResizeObserver(resize).observe(canvas);
 
-async function loadModel() {
+function loadModel() {
+  if (!modelLoading) modelLoading = createModels().finally(() => { modelLoading = null; });
+  return modelLoading;
+}
+async function createModels() {
   if (landmarker && faceLandmarker) return;
   const { FilesetResolver, PoseLandmarker, FaceLandmarker } = await import(`${CDN}/vision_bundle.mjs`);
   const files = await FilesetResolver.forVisionTasks(`${CDN}/wasm`);
@@ -90,6 +117,8 @@ function closeModels() {
 }
 
 function stopCamera() {
+  startGeneration++;
+  start.disabled = false;
   running = false;
   cancelAnimationFrame(raf);
   stream?.getTracks().forEach(track => track.stop());
@@ -106,6 +135,7 @@ function stopCamera() {
 
 start.addEventListener('click', async () => {
   if (running) { stopCamera(); say('カメラを停止しました'); return; }
+  const generation = ++startGeneration;
   start.disabled = true;
   try {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
@@ -113,13 +143,17 @@ start.addEventListener('click', async () => {
     }
     say('体と顔のモデルを読み込んでいます…');
     await loadModel();
+    if (generation !== startGeneration) return;
     say('カメラへのアクセスを許可してください…');
-    stream = await navigator.mediaDevices.getUserMedia({
+    const acquired = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30, max: 30 } }
     });
+    if (generation !== startGeneration) { acquired.getTracks().forEach(track => track.stop()); return; }
+    stream = acquired;
     video.srcObject = stream;
     await video.play();
+    if (generation !== startGeneration) return;
     stream.getVideoTracks()[0].addEventListener('ended', () => {
       stopCamera(); say('カメラの接続が切れました。もう一度開始してください。');
     }, { once: true });
@@ -133,13 +167,20 @@ start.addEventListener('click', async () => {
     say('顔と上半身を探しています…');
     raf = requestAnimationFrame(frame);
   } catch (error) {
+    if (generation !== startGeneration) return;
     stopCamera();
     console.error(error);
     say(error.name === 'NotAllowedError' ? 'カメラへのアクセスが拒否されました。許可してから再度お試しください。'
       : error.name === 'NotFoundError' ? 'カメラが見つかりません。'
       : error.name === 'NotReadableError' ? 'カメラを使用できません。他のカメラアプリを閉じてください。'
       : '起動できませんでした。HTTPSまたはlocalhostで開き、インターネット接続を確認して再度お試しください。');
-  } finally { start.disabled = false; }
+  } finally { if (generation === startGeneration) start.disabled = false; }
+});
+back.addEventListener('click', () => {
+  stopCamera();
+  ar.hidden = true; menu.hidden = false;
+  document.querySelector('#menu-title').focus();
+  refreshCatalog();
 });
 debug.addEventListener('click', () => {
   showDebug = !showDebug;
@@ -262,21 +303,21 @@ function drawCharacter() {
   ctx.save(); ctx.translate(x, y); ctx.rotate(angle); ctx.scale(size, size);
   ctx.beginPath(); ctx.moveTo(-0.48, -0.09); ctx.lineTo(0.48, -0.09);
   ctx.lineTo(0.35, 1.05); ctx.quadraticCurveTo(0, 1.2, -0.35, 1.05); ctx.closePath();
-  ctx.fillStyle = '#8c7dff'; ctx.fill(); ctx.strokeStyle = '#142330'; ctx.lineWidth = 0.025; ctx.stroke();
-  ctx.fillStyle = '#d4ceff'; ctx.fillRect(-0.22, 0.22, 0.44, 0.32);
+  ctx.fillStyle = theme.body; ctx.fill(); ctx.strokeStyle = '#142330'; ctx.lineWidth = 0.025; ctx.stroke();
+  ctx.fillStyle = theme.accent; ctx.fillRect(-0.22, 0.22, 0.44, 0.32);
   ctx.fillStyle = '#142330'; ctx.fillRect(-0.12, 0.32, 0.24, 0.05);
   ctx.restore();
   // Anatomical left = mint; anatomical right = coral. Elbows stay articulated.
-  for (const [s, e, w, color] of [[11, 13, 15, '#9effca'], [12, 14, 16, '#ff927e']]) {
+  for (const [s, e, w, color] of [[11, 13, 15, theme.arm], [12, 14, 16, theme.accent]]) {
     segment(points[s], points[e], size * 0.19, color);
-    segment(points[e], points[w], size * 0.14, '#ffe39a', true);
+    segment(points[e], points[w], size * 0.14, theme.skin, true);
     circle(points[s].x, points[s].y, size * 0.12, color);
     circle(points[e].x, points[e].y, size * 0.10, '#f3f7f8');
     circle(points[w].x, points[w].y, size * 0.10, color);
   }
   // Face graphics are drawn separately, so they also work without visible arms.
   if (faceVisible) {
-    segment({ x, y }, facePoints[152], size * 0.13, '#ffe39a');
+    segment({ x, y }, facePoints[152], size * 0.13, theme.skin);
   }
 }
 
@@ -290,13 +331,18 @@ function drawFace() {
   const cx = (p[234].x + p[454].x) / 2;
   const cy = (p[10].y + p[152].y) / 2;
   ctx.save(); ctx.translate(cx, cy); ctx.rotate(angle);
-  ctx.beginPath(); ctx.ellipse(0, 0, headWidth * 0.57, headHeight * 0.57, 0, 0, Math.PI * 2);
-  ctx.fillStyle = '#ffe39a'; ctx.fill();
+  drawAccessories(headWidth, headHeight);
+  ctx.beginPath();
+  if (selected.template === 'robot') ctx.roundRect(-headWidth * 0.57, -headHeight * 0.54, headWidth * 1.14, headHeight * 1.08, headWidth * 0.15);
+  else ctx.ellipse(0, 0, headWidth * 0.57, headHeight * 0.57, 0, 0, Math.PI * 2);
+  ctx.fillStyle = theme.skin; ctx.fill();
   ctx.strokeStyle = '#142330'; ctx.lineWidth = Math.max(2, headWidth * 0.02); ctx.stroke();
   ctx.restore();
   for (const eye of EYES) drawEye(eye);
   drawMouth();
 
+  if (selected.template === 'cat') drawWhiskers();
+  if (selected.template !== 'gentleman') return;
   // Keep the moustache above the upper lip as the mouth opens.
   const nose = p[1], lip = p[0];
   const size = distance(p[61], p[291]) * 2.0;
@@ -334,7 +380,7 @@ function drawEye(eye) {
   ctx.fillStyle = '#fff'; ctx.fill(); ctx.stroke();
   if (open > 0.08) {
     ctx.save(); ctx.clip();
-    circle(ix, iy, w * 0.48, eye.color);
+    circle(ix, iy, w * 0.48, theme.iris);
     circle(ix, iy, w * 0.23, '#142330');
     circle(ix - w * 0.12, iy - w * 0.16, w * 0.09, '#fff', '#fff');
     ctx.restore();
@@ -398,3 +444,223 @@ function drawDebug() {
     if (confidence(raw[i])) circle(points[i].x, points[i].y, 3, '#45efff');
   }
 }
+
+function drawAccessories(w, h) {
+  ctx.fillStyle = theme.skin; ctx.strokeStyle = '#142330'; ctx.lineWidth = Math.max(2, w * 0.02);
+  for (const side of [-1, 1]) {
+    ctx.beginPath();
+    if (selected.template === 'cat') {
+      ctx.moveTo(side * w * 0.18, -h * 0.39);
+      ctx.lineTo(side * w * 0.49, -h * 0.81);
+      ctx.lineTo(side * w * 0.58, -h * 0.2);
+    } else if (selected.template === 'bunny') {
+      ctx.ellipse(side * w * 0.29, -h * 0.64, w * 0.14, h * 0.45, side * 0.17, 0, Math.PI * 2);
+    } else if (selected.template === 'bear') {
+      ctx.arc(side * w * 0.45, -h * 0.43, w * 0.22, 0, Math.PI * 2);
+    } else if (selected.template === 'alien') {
+      segment({ x: side * w * 0.24, y: -h * 0.4 }, { x: side * w * 0.38, y: -h * 0.76 }, w * 0.045, theme.skin);
+      circle(side * w * 0.38, -h * 0.76, w * 0.10, theme.accent);
+      continue;
+    } else if (selected.template === 'robot') {
+      ctx.rect(side * w * 0.55 - w * 0.1, -h * 0.15, w * 0.2, h * 0.28);
+    } else continue;
+    ctx.closePath(); ctx.fillStyle = theme.skin; ctx.fill(); ctx.stroke();
+  }
+  if (selected.template === 'robot') {
+    segment({x: 0, y: -h * 0.45}, {x: 0, y: -h * 0.78}, w * 0.04, theme.accent);
+    circle(0, -h * 0.78, w * 0.08, theme.accent);
+  }
+}
+
+function drawWhiskers() {
+  const p = facePoints, nose = p[1];
+  const w = distance(p[234], p[454]);
+  ctx.save(); ctx.translate(nose.x, nose.y);
+  ctx.rotate(Math.atan2(p[33].y - p[263].y, p[33].x - p[263].x));
+  ctx.strokeStyle = '#593728'; ctx.lineWidth = Math.max(1.5, w * 0.012);
+  for (const side of [-1, 1]) for (const offset of [-1, 1]) {
+    ctx.beginPath(); ctx.moveTo(side * w * 0.2, w * 0.05);
+    ctx.lineTo(side * w * 0.58, w * (0.05 + offset * 0.10)); ctx.stroke();
+  }
+  ctx.restore();
+}
+
+// The previews use the same geometry and palettes as the AR renderer.
+function renderPreview(target, item) {
+  const previous = selected, previousTheme = theme, previousCtx = ctx, previousFace = faceVisible;
+  const previousExpression = { ...expression };
+  Object.assign(expression, { eyeBlinkLeft: 0, eyeBlinkRight: 0, jawOpen: 0.15 });
+  selected = item; theme = { ...PRESETS[item.template], ...item.colors }; ctx = target.getContext('2d');
+  target.width = 460; target.height = 400; ctx.scale(2, 2);
+  facePoints.forEach(p => { p.x = 115; p.y = 93; });
+  for (const [i, x, y] of [[263, 89, 80], [362, 104, 80], [33, 141, 80], [133, 126, 80], [473, 96, 80], [468, 134, 80], [234, 73, 94], [454, 157, 94], [10, 115, 48], [152, 115, 135], [61, 100, 113], [291, 130, 113], [13, 115, 110], [14, 115, 121], [1, 115, 98], [0, 115, 107]]) Object.assign(facePoints[i], {x,y});
+  for (const [i,x,y] of [[11,72,143],[12,158,143],[13,47,164],[14,181,130],[15,35,142],[16,191,102]]) Object.assign(points[i], {x,y});
+  faceVisible = true;
+  ctx.save(); ctx.translate(11.5, 12); ctx.scale(0.9, 0.9); drawCharacter(); drawFace(); ctx.restore();
+  ctx = previousCtx; selected = previous; theme = previousTheme; faceVisible = previousFace;
+  Object.assign(expression, previousExpression);
+}
+
+const STORAGE_KEY = 'motion-pal-catalog-v1';
+let localCatalog = false, refreshVersion = 0;
+const editor = document.querySelector('#editor');
+const editChoice = document.querySelector('#edit-choice');
+const editorStatus = document.querySelector('#editor-status');
+const notice = document.querySelector('#menu-notice');
+function validateCatalog(data) {
+  if (data?.version !== 1 || !Array.isArray(data.characters) || data.characters.length < 1 || data.characters.length > 50) throw new Error('1〜50件のキャラクターを含む設定ファイルを選んでください。');
+  const ids = new Set();
+  return data.characters.map(item => {
+    if (!item || typeof item.id !== 'string' || !/^[a-zA-Z0-9_-]{1,80}$/.test(item.id) || ids.has(item.id)
+      || typeof item.name !== 'string' || !item.name.trim() || item.name.length > 30
+      || typeof item.description !== 'string' || item.description.length > 70
+      || !Object.hasOwn(PRESETS, item.template)) throw new Error('設定の名前・ID・キャラクターの形を確認してください。');
+    ids.add(item.id);
+    const colors = {};
+    for (const key of ['skin', 'body', 'arm', 'accent', 'iris', 'bg']) {
+      if (item.colors?.[key] !== undefined) {
+        if (!/^#[0-9a-fA-F]{6}$/.test(item.colors[key])) throw new Error('色は #RRGGBB 形式で指定してください。');
+        colors[key] = item.colors[key];
+      }
+    }
+    return { id: item.id, name: item.name.trim(), description: item.description, template: item.template, colors };
+  });
+}
+function packageCatalog() { return { version: 1, characters: catalog }; }
+function renderMenu() {
+  const container = document.querySelector('#characters');
+  container.replaceChildren();
+  document.querySelector('#character-count').textContent = `全${catalog.length}種類`;
+  catalog.forEach((item, index) => {
+    const button = document.createElement('button'); button.className = 'character-card';
+    button.setAttribute('aria-label', `${item.name}でARを開始`);
+    const art = document.createElement('div'); art.className = 'character-art';
+    art.style.setProperty('--card-bg', item.colors?.bg ?? PRESETS[item.template].bg);
+    const preview = document.createElement('canvas'); preview.setAttribute('aria-hidden', 'true'); art.append(preview);
+    const number = document.createElement('span'); number.className = 'card-number'; number.textContent = String(index + 1).padStart(2, '0'); art.append(number);
+    const info = document.createElement('span'); info.className = 'card-info';
+    const title = document.createElement('span'); title.className = 'card-title'; title.textContent = item.name;
+    const arrow = document.createElement('span'); arrow.className = 'card-arrow'; arrow.textContent = '↗'; title.append(arrow);
+    const desc = document.createElement('span'); desc.className = 'card-description'; desc.textContent = item.description;
+    info.append(title, desc); button.append(art, info); container.append(button);
+    renderPreview(preview, item);
+    button.addEventListener('click', () => {
+      selected = item; theme = { ...PRESETS[item.template], ...item.colors };
+      menu.hidden = true; ar.hidden = false; resize();
+      document.querySelector('#character-name').textContent = item.name;
+      start.focus(); start.click();
+    });
+  });
+}
+async function refreshCatalog() {
+  // Local edits are an explicit override, never silently published to other users.
+  const revision = ++refreshVersion;
+  try {
+    const stored = localStorage.getItem(STORAGE_KEY);
+    if (stored) {
+      const next = validateCatalog(JSON.parse(stored));
+      if (!menu.hidden) { catalog = next; localCatalog = true; renderMenu(); }
+      notice.textContent = 'この端末に保存したメニューを表示しています。'; notice.hidden = false;
+      return;
+    }
+  } catch { /* A disabled storage API does not prevent using the public menu. */ }
+  try {
+    const response = await fetch('characters.json', { cache: 'no-store' });
+    if (!response.ok) throw new Error('設定ファイルを読み込めませんでした。');
+    const next = validateCatalog(await response.json());
+    if (revision !== refreshVersion || menu.hidden || editor.open) return;
+    catalog = next; localCatalog = false; notice.hidden = true; renderMenu();
+  } catch {
+    if (revision !== refreshVersion) return;
+    notice.textContent = '公開設定を読み込めないため、現在のメニューを表示しています。'; notice.hidden = false;
+  }
+}
+function persistCatalog() {
+  refreshVersion++;
+  localCatalog = true;
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(packageCatalog()));
+    editorStatus.textContent = 'この端末に保存しました。公開するには設定を書き出してください。';
+  } catch {
+    editorStatus.textContent = '端末に保存できません。ページを閉じる前に設定を書き出してください。';
+  }
+  notice.hidden = false; notice.textContent = 'この端末で編集したメニューです。公開には設定の書き出しが必要です。';
+  renderMenu();
+}
+function fillEditor(id = catalog[0].id) {
+  editChoice.replaceChildren();
+  for (const item of catalog) {
+    const option = document.createElement('option'); option.value = item.id; option.textContent = item.name; editChoice.append(option);
+  }
+  editChoice.value = catalog.some(item => item.id === id) ? id : catalog[0].id;
+  const item = catalog.find(item => item.id === editChoice.value);
+  document.querySelector('#edit-name').value = item.name;
+  document.querySelector('#edit-description').value = item.description;
+  document.querySelector('#edit-template').value = item.template;
+  const palette = { ...PRESETS[item.template], ...item.colors };
+  for (const key of ['skin', 'body', 'bg']) document.querySelector(`#edit-${key}`).value = palette[key];
+  const index = catalog.indexOf(item);
+  document.querySelector('#move-up').disabled = index === 0;
+  document.querySelector('#move-down').disabled = index === catalog.length - 1;
+  document.querySelector('#delete-character').disabled = catalog.length === 1;
+  document.querySelector('#add-character').disabled = catalog.length >= 50;
+}
+document.querySelector('#manage').addEventListener('click', () => { refreshVersion++; fillEditor(); editorStatus.textContent = ''; editor.showModal(); });
+document.querySelector('#close-editor').addEventListener('click', () => editor.close());
+editChoice.addEventListener('change', () => fillEditor(editChoice.value));
+document.querySelector('#edit-template').addEventListener('change', event => {
+  for (const key of ['skin', 'body', 'bg']) document.querySelector(`#edit-${key}`).value = PRESETS[event.target.value][key];
+});
+document.querySelector('#character-form').addEventListener('submit', event => {
+  event.preventDefault();
+  const item = catalog.find(item => item.id === editChoice.value);
+  const name = document.querySelector('#edit-name').value.trim();
+  if (!name) { editorStatus.textContent = '名前を入力してください。'; return; }
+  if (item.template !== document.querySelector('#edit-template').value) item.colors = {};
+  item.name = name; item.description = document.querySelector('#edit-description').value;
+  item.template = document.querySelector('#edit-template').value;
+  item.colors ??= {};
+  for (const key of ['skin', 'body', 'bg']) item.colors[key] = document.querySelector(`#edit-${key}`).value;
+  persistCatalog(); fillEditor(item.id);
+});
+document.querySelector('#add-character').addEventListener('click', () => {
+  if (catalog.length >= 50) return;
+  const item = { id: `character-${crypto.randomUUID()}`, name: '新しいキャラクター', description: '自分だけの相棒', template: 'cat', colors: {} };
+  catalog.push(item); persistCatalog(); fillEditor(item.id); document.querySelector('#edit-name').focus();
+});
+for (const [id, direction] of [['move-up', -1], ['move-down', 1]]) document.querySelector(`#${id}`).addEventListener('click', () => {
+  const index = catalog.findIndex(item => item.id === editChoice.value), next = index + direction;
+  if (next < 0 || next >= catalog.length) return;
+  const selectedId = editChoice.value;
+  [catalog[index], catalog[next]] = [catalog[next], catalog[index]];
+  persistCatalog(); fillEditor(selectedId);
+});
+document.querySelector('#delete-character').addEventListener('click', () => {
+  if (catalog.length <= 1) return;
+  catalog = catalog.filter(item => item.id !== editChoice.value); persistCatalog(); fillEditor();
+});
+document.querySelector('#export-catalog').addEventListener('click', () => {
+  const url = URL.createObjectURL(new Blob([JSON.stringify(packageCatalog(), null, 2)], { type: 'application/json' }));
+  const link = document.createElement('a'); link.href = url; link.download = 'characters.json'; link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+  editorStatus.textContent = 'characters.jsonを書き出しました。GitHubの同名ファイルを置き換えて公開してください。';
+});
+document.querySelector('#import-catalog').addEventListener('click', () => document.querySelector('#import-file').click());
+document.querySelector('#import-file').addEventListener('change', async event => {
+  const file = event.target.files[0]; if (!file) return;
+  try {
+    if (file.size > 100000) throw new Error('設定ファイルは100KB以下にしてください。');
+    const next = validateCatalog(JSON.parse(await file.text()));
+    catalog = next; persistCatalog(); fillEditor();
+  } catch (error) { editorStatus.textContent = error instanceof SyntaxError ? 'JSON形式の設定ファイルを選んでください。' : error.message; }
+  event.target.value = '';
+});
+document.querySelector('#reset-catalog').addEventListener('click', async () => {
+  try { localStorage.removeItem(STORAGE_KEY); }
+  catch { editorStatus.textContent = '端末の保存設定を削除できませんでした。'; return; }
+  localCatalog = false; editor.close(); await refreshCatalog();
+});
+document.querySelector('#refresh-menu').addEventListener('click', refreshCatalog);
+window.addEventListener('focus', () => { if (!menu.hidden && !editor.open) refreshCatalog(); });
+renderMenu();
+refreshCatalog();
