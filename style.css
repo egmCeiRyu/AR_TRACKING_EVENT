@@ -57,18 +57,3 @@ small { display: block; margin-top: 12px; text-align: center; color: #98a8b4; fo
 #character-name { font-size: 21px; white-space: nowrap; }
 @media (min-width: 700px) { .menu { padding-left: 40px; padding-right: 40px; } .characters { grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 20px; } .menu-intro { margin-top: 55px; } .menu-intro br:first-child { display: none; } .card-info { padding: 16px; } .card-title { font-size: 18px; } .card-description { font-size: 12px; } }
 @media (prefers-reduced-motion: reduce) { .character-card { transition: none; } }
-.menu-footer button { background: transparent; border-color: #d9d6d0; color: #77717d; font-size: 10px; margin: 16px 4px 0; }
-.menu-notice { max-width: 1000px; margin: 0 auto 16px; padding: 12px; background: #ebe7f6; border-radius: 10px; color: #655779; font-size: 12px; }
-dialog { width: min(480px, calc(100% - 24px)); max-height: calc(100dvh - 32px); overflow: auto; padding: 22px; border: 1px solid #e5e2dc; border-radius: 22px; background: #f7f5ef; color: #242936; color-scheme: light; }
-dialog::backdrop { background: #101923b3; }
-.editor-heading { display: flex; justify-content: space-between; align-items: center; }
-.editor-heading h2 { font-size: 20px; margin: 0; }
-dialog p { color: #77717d; font-size: 12px; }
-dialog label { display: grid; gap: 6px; font-size: 12px; margin-bottom: 12px; }
-dialog input, dialog select { width: 100%; border: 1px solid #d9d6d0; border-radius: 9px; padding: 10px; font: inherit; background: #fff; color: #242936; min-height: 44px; }
-dialog button { background: #eeebf5; color: #655779; border: 1px solid #d9d6d0; font-size: 11px; }
-dialog .primary { background: #7560dd; color: #fff; }
-.editor-tools { display: flex; gap: 7px; flex-wrap: wrap; margin: 12px 0; }
-.color-fields { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
-.color-fields input { padding: 3px; }
-#editor-status { min-height: 18px; }

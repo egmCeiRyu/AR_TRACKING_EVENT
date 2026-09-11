@@ -501,12 +501,7 @@ function renderPreview(target, item) {
   Object.assign(expression, previousExpression);
 }
 
-const STORAGE_KEY = 'motion-pal-catalog-v1';
-let localCatalog = false, refreshVersion = 0;
-const editor = document.querySelector('#editor');
-const editChoice = document.querySelector('#edit-choice');
-const editorStatus = document.querySelector('#editor-status');
-const notice = document.querySelector('#menu-notice');
+let refreshVersion = 0;
 function validateCatalog(data) {
   if (data?.version !== 1 || !Array.isArray(data.characters) || data.characters.length < 1 || data.characters.length > 50) throw new Error('1〜50件のキャラクターを含む設定ファイルを選んでください。');
   const ids = new Set();
@@ -526,7 +521,6 @@ function validateCatalog(data) {
     return { id: item.id, name: item.name.trim(), description: item.description, template: item.template, colors };
   });
 }
-function packageCatalog() { return { version: 1, characters: catalog }; }
 function renderMenu() {
   const container = document.querySelector('#characters');
   container.replaceChildren();
@@ -553,114 +547,19 @@ function renderMenu() {
   });
 }
 async function refreshCatalog() {
-  // Local edits are an explicit override, never silently published to other users.
   const revision = ++refreshVersion;
   try {
-    const stored = localStorage.getItem(STORAGE_KEY);
-    if (stored) {
-      const next = validateCatalog(JSON.parse(stored));
-      if (!menu.hidden) { catalog = next; localCatalog = true; renderMenu(); }
-      notice.textContent = 'この端末に保存したメニューを表示しています。'; notice.hidden = false;
-      return;
-    }
-  } catch { /* A disabled storage API does not prevent using the public menu. */ }
-  try {
     const response = await fetch('characters.json', { cache: 'no-store' });
-    if (!response.ok) throw new Error('設定ファイルを読み込めませんでした。');
+    if (!response.ok) throw new Error('キャラクター設定を読み込めませんでした。');
     const next = validateCatalog(await response.json());
-    if (revision !== refreshVersion || menu.hidden || editor.open) return;
-    catalog = next; localCatalog = false; notice.hidden = true; renderMenu();
-  } catch {
-    if (revision !== refreshVersion) return;
-    notice.textContent = '公開設定を読み込めないため、現在のメニューを表示しています。'; notice.hidden = false;
+    if (revision !== refreshVersion || menu.hidden) return;
+    catalog = next;
+    renderMenu();
+  } catch (error) {
+    // Keep the current/default characters usable if the catalog is unavailable.
+    console.warn('キャラクター設定の読み込みに失敗しました。', error);
   }
 }
-function persistCatalog() {
-  refreshVersion++;
-  localCatalog = true;
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(packageCatalog()));
-    editorStatus.textContent = 'この端末に保存しました。公開するには設定を書き出してください。';
-  } catch {
-    editorStatus.textContent = '端末に保存できません。ページを閉じる前に設定を書き出してください。';
-  }
-  notice.hidden = false; notice.textContent = 'この端末で編集したメニューです。公開には設定の書き出しが必要です。';
-  renderMenu();
-}
-function fillEditor(id = catalog[0].id) {
-  editChoice.replaceChildren();
-  for (const item of catalog) {
-    const option = document.createElement('option'); option.value = item.id; option.textContent = item.name; editChoice.append(option);
-  }
-  editChoice.value = catalog.some(item => item.id === id) ? id : catalog[0].id;
-  const item = catalog.find(item => item.id === editChoice.value);
-  document.querySelector('#edit-name').value = item.name;
-  document.querySelector('#edit-description').value = item.description;
-  document.querySelector('#edit-template').value = item.template;
-  const palette = { ...PRESETS[item.template], ...item.colors };
-  for (const key of ['skin', 'body', 'bg']) document.querySelector(`#edit-${key}`).value = palette[key];
-  const index = catalog.indexOf(item);
-  document.querySelector('#move-up').disabled = index === 0;
-  document.querySelector('#move-down').disabled = index === catalog.length - 1;
-  document.querySelector('#delete-character').disabled = catalog.length === 1;
-  document.querySelector('#add-character').disabled = catalog.length >= 50;
-}
-document.querySelector('#manage').addEventListener('click', () => { refreshVersion++; fillEditor(); editorStatus.textContent = ''; editor.showModal(); });
-document.querySelector('#close-editor').addEventListener('click', () => editor.close());
-editChoice.addEventListener('change', () => fillEditor(editChoice.value));
-document.querySelector('#edit-template').addEventListener('change', event => {
-  for (const key of ['skin', 'body', 'bg']) document.querySelector(`#edit-${key}`).value = PRESETS[event.target.value][key];
-});
-document.querySelector('#character-form').addEventListener('submit', event => {
-  event.preventDefault();
-  const item = catalog.find(item => item.id === editChoice.value);
-  const name = document.querySelector('#edit-name').value.trim();
-  if (!name) { editorStatus.textContent = '名前を入力してください。'; return; }
-  if (item.template !== document.querySelector('#edit-template').value) item.colors = {};
-  item.name = name; item.description = document.querySelector('#edit-description').value;
-  item.template = document.querySelector('#edit-template').value;
-  item.colors ??= {};
-  for (const key of ['skin', 'body', 'bg']) item.colors[key] = document.querySelector(`#edit-${key}`).value;
-  persistCatalog(); fillEditor(item.id);
-});
-document.querySelector('#add-character').addEventListener('click', () => {
-  if (catalog.length >= 50) return;
-  const item = { id: `character-${crypto.randomUUID()}`, name: '新しいキャラクター', description: '自分だけの相棒', template: 'cat', colors: {} };
-  catalog.push(item); persistCatalog(); fillEditor(item.id); document.querySelector('#edit-name').focus();
-});
-for (const [id, direction] of [['move-up', -1], ['move-down', 1]]) document.querySelector(`#${id}`).addEventListener('click', () => {
-  const index = catalog.findIndex(item => item.id === editChoice.value), next = index + direction;
-  if (next < 0 || next >= catalog.length) return;
-  const selectedId = editChoice.value;
-  [catalog[index], catalog[next]] = [catalog[next], catalog[index]];
-  persistCatalog(); fillEditor(selectedId);
-});
-document.querySelector('#delete-character').addEventListener('click', () => {
-  if (catalog.length <= 1) return;
-  catalog = catalog.filter(item => item.id !== editChoice.value); persistCatalog(); fillEditor();
-});
-document.querySelector('#export-catalog').addEventListener('click', () => {
-  const url = URL.createObjectURL(new Blob([JSON.stringify(packageCatalog(), null, 2)], { type: 'application/json' }));
-  const link = document.createElement('a'); link.href = url; link.download = 'characters.json'; link.click();
-  setTimeout(() => URL.revokeObjectURL(url), 1000);
-  editorStatus.textContent = 'characters.jsonを書き出しました。GitHubの同名ファイルを置き換えて公開してください。';
-});
-document.querySelector('#import-catalog').addEventListener('click', () => document.querySelector('#import-file').click());
-document.querySelector('#import-file').addEventListener('change', async event => {
-  const file = event.target.files[0]; if (!file) return;
-  try {
-    if (file.size > 100000) throw new Error('設定ファイルは100KB以下にしてください。');
-    const next = validateCatalog(JSON.parse(await file.text()));
-    catalog = next; persistCatalog(); fillEditor();
-  } catch (error) { editorStatus.textContent = error instanceof SyntaxError ? 'JSON形式の設定ファイルを選んでください。' : error.message; }
-  event.target.value = '';
-});
-document.querySelector('#reset-catalog').addEventListener('click', async () => {
-  try { localStorage.removeItem(STORAGE_KEY); }
-  catch { editorStatus.textContent = '端末の保存設定を削除できませんでした。'; return; }
-  localCatalog = false; editor.close(); await refreshCatalog();
-});
-document.querySelector('#refresh-menu').addEventListener('click', refreshCatalog);
-window.addEventListener('focus', () => { if (!menu.hidden && !editor.open) refreshCatalog(); });
+window.addEventListener('focus', () => { if (!menu.hidden) refreshCatalog(); });
 renderMenu();
 refreshCatalog();

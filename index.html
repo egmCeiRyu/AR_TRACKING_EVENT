@@ -15,26 +15,9 @@
       <p>お気に入りをタップして、ARの世界へ。<br>まばたきも、笑顔も、腕の動きもいっしょに。</p>
     </div>
     <div class="collection-heading"><h2>キャラクターを選ぶ</h2><span id="character-count"></span></div>
-    <p id="menu-notice" class="menu-notice" role="status" hidden></p>
     <div id="characters" class="characters"></div>
-    <footer class="menu-footer"><span>01 選ぶ</span><span>02 カメラを許可</span><span>03 動いてあそぶ</span><p>カメラ映像は端末内で処理されます。</p><button id="manage">メニューを編集</button><button id="refresh-menu">最新の設定を読み込む</button></footer>
+    <footer class="menu-footer"><span>01 選ぶ</span><span>02 カメラを許可</span><span>03 動いてあそぶ</span><p>カメラ映像は端末内で処理されます。</p></footer>
   </section>
-  <dialog id="editor" aria-labelledby="editor-title">
-    <div class="editor-heading"><h2 id="editor-title">キャラクター管理</h2><button id="close-editor" aria-label="閉じる">✕</button></div>
-    <p>この端末で編集・保存できます。公開サイトに反映するには、設定を書き出してGitHubの characters.json を更新してください。</p>
-    <label>編集するキャラクター<select id="edit-choice"></select></label>
-    <div class="editor-tools"><button id="add-character">＋ 追加</button><button id="move-up">↑ 前へ</button><button id="move-down">↓ 後へ</button><button id="delete-character">削除</button></div>
-    <form id="character-form">
-      <label>名前<input id="edit-name" required maxlength="30"></label>
-      <label>説明<input id="edit-description" maxlength="70"></label>
-      <label>キャラクターの形<select id="edit-template"><option value="gentleman">ひげダンディ</option><option value="robot">ロボット</option><option value="cat">ねこ</option><option value="bunny">ウサギ</option><option value="alien">宇宙人</option><option value="bear">くま</option></select></label>
-      <div class="color-fields"><label>顔の色<input id="edit-skin" type="color"></label><label>体の色<input id="edit-body" type="color"></label><label>背景の色<input id="edit-bg" type="color"></label></div>
-      <button type="submit" class="primary">この端末に保存</button>
-    </form>
-    <p id="editor-status" role="status"></p>
-    <div class="editor-tools"><button id="export-catalog">設定を書き出す</button><button id="import-catalog">設定を読み込む</button><button id="reset-catalog">公開設定に戻す</button></div>
-    <input id="import-file" type="file" accept="application/json,.json" hidden>
-  </dialog>
   <main id="ar" hidden>
     <video id="camera" autoplay muted playsinline aria-label="左右反転したカメラ映像"></video>
     <canvas id="overlay" aria-label="顔と上半身の動きに連動するキャラクター"></canvas>
@@ -49,6 +32,6 @@
       <small>カメラ映像はお使いの端末内で処理されます。</small>
     </section>
   </main>
-  <script type="module" src="app.js?v=menu-1"></script>
+  <script type="module" src="app.js?v=menu-2"></script>
 </body>
 </html>
