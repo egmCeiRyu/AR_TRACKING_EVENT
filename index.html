@@ -1,27 +1,27 @@
 <!doctype html>
-<html lang="en">
+<html lang="ja">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <meta name="theme-color" content="#101923">
-  <title>Motion Pal · Upper-body tracking</title>
+  <title>モーションパル · 顔と上半身のトラッキング</title>
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
   <main>
-    <video id="camera" autoplay muted playsinline aria-label="Mirrored webcam"></video>
-    <canvas id="overlay" aria-label="Animated upper-body character"></canvas>
+    <video id="camera" autoplay muted playsinline aria-label="左右反転したカメラ映像"></video>
+    <canvas id="overlay" aria-label="顔と上半身の動きに連動するキャラクター"></canvas>
     <header>
-      <div><span class="eyebrow">POSE PLAYGROUND</span><h1>Motion Pal<span>•</span></h1></div>
-      <button id="debug" aria-pressed="false">Landmarks</button>
+      <div><span class="eyebrow">動きであそぼう</span><h1>モーションパル<span>•</span></h1></div>
+      <button id="debug" aria-pressed="false">追跡ポイント</button>
     </header>
-    <section class="panel" aria-label="Camera controls">
-      <div class="readout"><span id="status" role="status">Ready to move?</span><span id="fps">— FPS</span></div>
-      <p>Pisque cada olho e abra a boca: a ilustração acompanha suas expressões. Afaste-se para mostrar também os braços.</p>
-      <button id="start" class="primary">Start camera</button>
-      <small>Camera frames are processed on your device.</small>
+    <section class="panel" aria-label="カメラ操作">
+      <div class="readout"><span id="status" role="status">準備はいいですか？</span><span id="fps">— FPS</span></div>
+      <p>片目ずつまばたきをしたり、口を開けたりしてみましょう。イラストが表情に合わせて動きます。腕も映るように少し離れてください。</p>
+      <button id="start" class="primary">カメラを開始</button>
+      <small>カメラ映像はお使いの端末内で処理されます。</small>
     </section>
   </main>
-  <script type="module" src="app.js?v=face-1"></script>
+  <script type="module" src="app.js?v=ja-1"></script>
 </body>
 </html>

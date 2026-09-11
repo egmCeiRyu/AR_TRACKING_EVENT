@@ -63,14 +63,14 @@ async function loadModel() {
   async function createTask(Task, settings) {
     try { return await Task.createFromOptions(files, settings); }
     catch {
-      say('Tentando rastreamento pela CPU…');
+      say('CPUでのトラッキングを試しています…');
       settings.baseOptions.delegate = 'CPU';
       return Task.createFromOptions(files, settings);
     }
   }
   try {
     if (!landmarker) landmarker = await createTask(PoseLandmarker, options);
-    say('Carregando olhos e boca…');
+    say('目と口のモデルを読み込んでいます…');
     if (!faceLandmarker) faceLandmarker = await createTask(FaceLandmarker, {
       baseOptions: { modelAssetPath: FACE_MODEL, delegate: 'GPU' },
       runningMode: 'VIDEO', numFaces: 1,
@@ -100,20 +100,20 @@ function stopCamera() {
   faceVisible = false;
   visible = false;
   ctx.clearRect(0, 0, width, height);
-  start.textContent = 'Start camera';
+  start.textContent = 'カメラを開始';
   fps.textContent = '— FPS';
 }
 
 start.addEventListener('click', async () => {
-  if (running) { stopCamera(); say('Camera stopped'); return; }
+  if (running) { stopCamera(); say('カメラを停止しました'); return; }
   start.disabled = true;
   try {
     if (!window.isSecureContext || !navigator.mediaDevices?.getUserMedia) {
-      throw new Error('Camera requires HTTPS or localhost.');
+      throw new Error('カメラを使用するにはHTTPSまたはlocalhostで開いてください。');
     }
-    say('Carregando corpo e rosto…');
+    say('体と顔のモデルを読み込んでいます…');
     await loadModel();
-    say('Allow camera access…');
+    say('カメラへのアクセスを許可してください…');
     stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
       video: { facingMode: 'user', width: { ideal: 640 }, height: { ideal: 480 }, frameRate: { ideal: 30, max: 30 } }
@@ -121,7 +121,7 @@ start.addEventListener('click', async () => {
     video.srcObject = stream;
     await video.play();
     stream.getVideoTracks()[0].addEventListener('ended', () => {
-      stopCamera(); say('Camera disconnected. Start again.');
+      stopCamera(); say('カメラの接続が切れました。もう一度開始してください。');
     }, { once: true });
     running = true;
     lastVideo = -1;
@@ -129,16 +129,16 @@ start.addEventListener('click', async () => {
     lastInference = lastDraw = lastResult = 0;
     fpsStart = performance.now();
     detections = 0;
-    start.textContent = 'Stop camera';
-    say('Looking for your upper body…');
+    start.textContent = 'カメラを停止';
+    say('顔と上半身を探しています…');
     raf = requestAnimationFrame(frame);
   } catch (error) {
     stopCamera();
     console.error(error);
-    say(error.name === 'NotAllowedError' ? 'Camera permission denied. Allow access and retry.'
-      : error.name === 'NotFoundError' ? 'No camera found.'
-      : error.name === 'NotReadableError' ? 'Camera unavailable. Close other camera apps.'
-      : `Could not start: ${error.message}`);
+    say(error.name === 'NotAllowedError' ? 'カメラへのアクセスが拒否されました。許可してから再度お試しください。'
+      : error.name === 'NotFoundError' ? 'カメラが見つかりません。'
+      : error.name === 'NotReadableError' ? 'カメラを使用できません。他のカメラアプリを閉じてください。'
+      : '起動できませんでした。HTTPSまたはlocalhostで開き、インターネット接続を確認して再度お試しください。');
   } finally { start.disabled = false; }
 });
 debug.addEventListener('click', () => {
@@ -147,7 +147,7 @@ debug.addEventListener('click', () => {
 });
 window.addEventListener('pagehide', () => { stopCamera(); closeModels(); });
 document.addEventListener('visibilitychange', () => {
-  if (document.hidden && running) { stopCamera(); say('Camera paused. Start to resume.'); }
+  if (document.hidden && running) { stopCamera(); say('カメラを一時停止しました。開始ボタンで再開できます。'); }
 });
 
 function frame(now) {
@@ -172,8 +172,8 @@ function frame(now) {
       }
       lastResult = now;
       say(faceVisible
-        ? visible ? 'Corpo + rosto · pisque e abra a boca!' : 'Rosto ativo · afaste-se para mostrar os braços'
-        : visible ? 'Corpo ativo · olhe para a câmera' : 'Mostre seu rosto para a câmera');
+        ? visible ? '体と顔を追跡中 · まばたきや口の開閉を試してください！' : '顔を追跡中 · 腕が映るように少し離れてください'
+        : visible ? '体を追跡中 · カメラに顔を向けてください' : 'カメラに顔を映してください');
       detections++;
       if (now - fpsStart >= 1000) {
         fps.textContent = `${Math.round(detections * 1000 / (now - fpsStart))} FPS`;
@@ -183,7 +183,7 @@ function frame(now) {
     }
     if (now - lastResult > 500) {
       visible = faceVisible = false; raw = faceRaw = null;
-      say('Aguardando imagens da câmera…');
+      say('カメラ映像を待っています…');
     }
     const dt = Math.min((now - lastDraw) / 1000, 0.1);
     const alpha = 1 - Math.exp(-dt / 0.065);
@@ -207,7 +207,7 @@ function frame(now) {
     console.error(error);
     stopCamera();
     closeModels();
-    say('Tracking failed. Start camera to retry.');
+    say('トラッキングに失敗しました。カメラを再度開始してください。');
   }
 }
 
