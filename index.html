@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#101923">
+  <title>Motion Pal · Upper-body tracking</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <main>
+    <video id="camera" autoplay muted playsinline aria-label="Mirrored webcam"></video>
+    <canvas id="overlay" aria-label="Animated upper-body character"></canvas>
+    <header>
+      <div><span class="eyebrow">POSE PLAYGROUND</span><h1>Motion Pal<span>•</span></h1></div>
+      <button id="debug" aria-pressed="false">Landmarks</button>
+    </header>
+    <section class="panel" aria-label="Camera controls">
+      <div class="readout"><span id="status" role="status">Ready to move?</span><span id="fps">— FPS</span></div>
+      <p>Face the camera. Keep your head, shoulders, elbows, and wrists in view.</p>
+      <button id="start" class="primary">Start camera</button>
+      <small>Camera frames are processed on your device.</small>
+    </section>
+  </main>
+  <script type="module" src="app.js"></script>
+</body>
+</html>

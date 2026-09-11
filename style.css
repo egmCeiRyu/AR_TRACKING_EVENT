@@ -1,0 +1,24 @@
+:root { color-scheme: dark; font-family: system-ui, sans-serif; background: #101923; color: #f3f7f8; }
+* { box-sizing: border-box; }
+body { margin: 0; }
+main { position: fixed; inset: 0; overflow: hidden; background: radial-gradient(ellipse at 50% 35%, #294654, #101923 75%); }
+#camera, #overlay { position: absolute; inset: 0; width: 100%; height: 100%; }
+#camera { object-fit: cover; object-position: center; transform: scaleX(-1); }
+#overlay { pointer-events: none; }
+header { position: absolute; top: 0; left: 0; right: 0; display: flex; align-items: center; justify-content: space-between; gap: 16px; padding: max(24px, env(safe-area-inset-top)) 22px 24px; background: linear-gradient(#101923bb, transparent); }
+.eyebrow { font-size: 10px; font-weight: 700; letter-spacing: .2em; }
+h1 { margin: 4px 0 0; font-size: 27px; letter-spacing: -.06em; }
+h1 span { color: #9effca; margin-left: 5px; }
+button { min-height: 44px; border: 1px solid #ffffff40; border-radius: 14px; padding: 10px 16px; color: inherit; background: #101923ba; font: inherit; font-size: 13px; font-weight: 650; cursor: pointer; touch-action: manipulation; }
+button:focus-visible { outline: 3px solid #a6ffd0; outline-offset: 4px; }
+button[aria-pressed="true"] { background: #a6ffd0; color: #101923; }
+button:disabled { opacity: .6; cursor: wait; }
+.panel { position: absolute; bottom: max(18px, env(safe-area-inset-bottom)); left: 50%; transform: translateX(-50%); width: min(390px, calc(100% - 32px)); padding: 18px; border: 1px solid #ffffff26; border-radius: 22px; background: #101923e8; box-shadow: 0 12px 50px #0003; }
+.readout { display: flex; justify-content: space-between; gap: 12px; align-items: baseline; }
+#status { font-size: 14px; font-weight: 700; }
+#fps { white-space: nowrap; font-size: 11px; color: #a6ffd0; font-variant-numeric: tabular-nums; }
+p { margin: 10px 0 16px; color: #c0cbd3; font-size: 13px; line-height: 1.5; }
+.primary { width: 100%; background: #a6ffd0; color: #101923; border: 0; font-size: 14px; }
+small { display: block; margin-top: 12px; text-align: center; color: #98a8b4; font-size: 10px; }
+@media (min-width: 700px) { header { padding: 30px 36px; } .panel { bottom: 26px; } }
+@media (max-height: 500px) { .panel { left: auto; right: 16px; transform: none; width: 270px; padding: 12px; } .panel p, .panel small { display: none; } .primary { margin-top: 10px; } }
